@@ -14,6 +14,8 @@ from summarizer import summarize_logs
 from screen_recorder import capture_screenshot
 from ocr_processor import extract_text_from_image
 from text_analyzer import analyze_text, generate_structured_summary, format_summary_for_display
+from ai_summarizer import summarize_work_with_ai, format_ai_summary_for_display
+from discord_notifier import send_summary_to_discord
 from config import (
     WORK_START_TIME,
     WORK_END_TIME,
@@ -21,7 +23,12 @@ from config import (
     TRACKING_INTERVAL,
     SCREENSHOT_INTERVAL,
     SCREENSHOT_DIR,
-    TARGET_WINDOW
+    TARGET_WINDOW,
+    DISCORD_WEBHOOK_URL,
+    SEND_TO_DISCORD,
+    USE_AI_SUMMARIZATION,
+    OLLAMA_API_URL,
+    OLLAMA_MODEL
 )
 
 
@@ -66,9 +73,35 @@ def track_single_activity():
     return None
 
 
+def cleanup_screenshots():
+    """
+    Delete all screenshot files and clean up the screenshots directory.
+    """
+    print("\n🗑️  Cleaning up screenshots...")
+
+    try:
+        # Get all screenshots from database
+        screenshots = get_screenshots()
+        deleted_count = 0
+
+        for screenshot_id, file_path, timestamp, extracted_text in screenshots:
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                    deleted_count += 1
+                except Exception as e:
+                    print(f"⚠️  Could not delete {file_path}: {e}")
+
+        print(f"✅ Deleted {deleted_count} screenshot files")
+
+    except Exception as e:
+        print(f"❌ Error cleaning up screenshots: {e}")
+
+
 def process_and_generate_summary():
     """
     Process all screenshots with OCR and generate the work summary.
+    Uses AI summarization if enabled, otherwise falls back to keyword extraction.
     """
     print("\n🔄 Processing screenshots with OCR...")
 
@@ -79,7 +112,7 @@ def process_and_generate_summary():
         print("No screenshots to process.")
         return
 
-    screenshot_data = []
+    all_ocr_texts = []
 
     for screenshot_id, file_path, timestamp, extracted_text in screenshots:
         # If text not already extracted, do OCR now
@@ -87,30 +120,58 @@ def process_and_generate_summary():
             if os.path.exists(file_path):
                 print(f"  Processing: {os.path.basename(file_path)}")
                 extracted_text = extract_text_from_image(file_path)
-                # Update database with extracted text
-                # Note: We'd need an update function, for now just use it
 
-        # Analyze the text
+        # Collect all OCR text
         if extracted_text and extracted_text.strip():
-            analysis = analyze_text(extracted_text)
-            screenshot_data.append({
-                'timestamp': timestamp,
-                'analysis': analysis
-            })
+            all_ocr_texts.append(extracted_text)
 
     # Generate summary
-    if screenshot_data:
+    if all_ocr_texts:
         # Check if today is Friday (4 = Friday in weekday())
         is_friday = datetime.now().weekday() == 4
 
-        summary = generate_structured_summary(screenshot_data, is_friday=is_friday)
-        formatted_summary = format_summary_for_display(summary)
+        # Use AI summarization if enabled
+        if USE_AI_SUMMARIZATION:
+            print(f"\n🤖 Using Ollama AI to analyze {len(all_ocr_texts)} screenshots...")
+            ai_summary = summarize_work_with_ai(all_ocr_texts, OLLAMA_API_URL, OLLAMA_MODEL, is_friday)
 
+            if ai_summary:
+                formatted_summary = format_ai_summary_for_display(ai_summary)
+            else:
+                print("⚠️  AI summarization failed, falling back to keyword extraction")
+                # Fallback to keyword extraction
+                screenshot_data = []
+                for text in all_ocr_texts:
+                    analysis = analyze_text(text)
+                    screenshot_data.append({'analysis': analysis, 'timestamp': datetime.now()})
+                summary = generate_structured_summary(screenshot_data, is_friday=is_friday)
+                formatted_summary = format_summary_for_display(summary)
+        else:
+            # Use keyword extraction
+            print(f"\n🔍 Using keyword extraction to analyze {len(all_ocr_texts)} screenshots...")
+            screenshot_data = []
+            for text in all_ocr_texts:
+                analysis = analyze_text(text)
+                screenshot_data.append({'analysis': analysis, 'timestamp': datetime.now()})
+            summary = generate_structured_summary(screenshot_data, is_friday=is_friday)
+            formatted_summary = format_summary_for_display(summary)
+
+        # Print to console
         print("\n" + "="*70)
         print("📊 END OF DAY WORK SUMMARY")
         print("="*70)
         print(formatted_summary)
         print("="*70 + "\n")
+
+        # Send to Discord if enabled
+        if SEND_TO_DISCORD and DISCORD_WEBHOOK_URL:
+            print("📤 Sending summary to Discord...")
+            send_summary_to_discord(DISCORD_WEBHOOK_URL, formatted_summary)
+        elif SEND_TO_DISCORD and not DISCORD_WEBHOOK_URL:
+            print("⚠️  Discord notifications enabled but webhook URL not configured")
+
+        # Clean up screenshots after summary is generated
+        cleanup_screenshots()
     else:
         print("No text extracted from screenshots.")
 

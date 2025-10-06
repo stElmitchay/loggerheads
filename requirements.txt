@@ -1,3 +1,4 @@
 pygetwindow
 pillow
 pytesseract
+requests
