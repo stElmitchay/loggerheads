@@ -1,149 +1,127 @@
-# Daily Activity Tracker with OCR Analysis
+# Daily Activity Tracker
 
-An intelligent work tracker that captures screenshots during work hours, extracts text using OCR, and generates detailed end-of-day summaries focused on actual work accomplished.
+Automatically track your work and get AI-generated daily summaries. Built for macOS.
 
-## Features
+## 🚀 Installation
 
-- 📸 **Automatic Screenshot Capture**: Takes screenshots every 10 seconds during work hours
-- 🔍 **OCR Text Extraction**: Extracts text from screenshots using Tesseract OCR
-- 🤖 **Smart Work Analysis**: Analyzes work content to identify:
-  - Tasks worked on and completed
-  - Problems solved and blockers
-  - Code written (functions, classes, imports)
-  - Technical topics and technologies used
-  - Solana ecosystem news (from Twitter screenshots)
-- 📊 **End-of-Day Summary**: Generates structured daily summary at 4:30pm
-- ⏰ **Business Hours Only**: Runs Mon-Fri, 9:30am-4:30pm (configurable)
-
-## Installation
-
-### 1. Install Python Dependencies
+### 1. Install Dependencies
 
 ```bash
-pip install -r requirements.txt
-```
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull llama3.2
 
-### 2. Install Tesseract OCR
-
-**macOS:**
-```bash
+# Install Tesseract OCR
 brew install tesseract
 ```
 
-**Ubuntu/Debian:**
-```bash
-sudo apt-get install tesseract-ocr
-```
-
-**Windows:**
-Download from: https://github.com/UB-Mannheim/tesseract/wiki
-
-## Usage
-
-### Start the Tracker
+### 2. Clone and Install Package
 
 ```bash
-python scheduler.py
+git clone https://github.com/yourcompany/daily-tracker.git
+cd daily-tracker
+pip install -e .
 ```
 
-The tracker will:
-- Start automatically at 9:30am on weekdays
-- Capture screenshots every 10 seconds
-- Track window activity every 2 seconds
-- Generate summary at 4:30pm
-- Pause until next work day
+### 3. Configure
 
-### Manual Stop
+Create a `.env` file in the project root:
+
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit .env and add your Discord webhook
+nano .env
+```
+
+Your `.env` file should contain:
+
+```bash
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your-webhook-url-here
+SEND_TO_DISCORD=true
+```
+
+**Note:** The `.env` file is gitignored, so your webhook stays private!
+
+## ▶️ Usage
+
+```bash
+# Start the tracker
+daily-tracker
+
+# Or explicitly
+daily-tracker start
+
+# Show version
+daily-tracker version
+
+# Show help
+daily-tracker help
+```
+
+The app will:
+- Start tracking at 9:30am (Mon-Fri)
+- Take screenshots every 10 seconds
+- Generate AI summary at 4:30pm
+- Post summary to Discord
+- Delete all data automatically
 
 Press `Ctrl+C` to stop and generate summary immediately.
 
-## Configuration
+## 🔧 Updates
 
-Edit `config.py` to customize:
-
-```python
-# Work hours
-WORK_START_TIME = "09:30"
-WORK_END_TIME = "16:30"
-WORK_DAYS = [0, 1, 2, 3, 4]  # Mon-Fri
-
-# Screenshot settings
-SCREENSHOT_INTERVAL = 10  # seconds
-SCREENSHOT_DIR = "./screenshots/"
-AUTO_CLEANUP_DAYS = 1  # days
-
-# Activity tracking
-TRACKING_INTERVAL = 2  # seconds
+```bash
+# Update to latest version
+pip install --upgrade git+https://github.com/yourcompany/daily-tracker.git
 ```
 
-## Summary Format
+## 📊 Summary Format
 
-The end-of-day summary includes:
+Daily summary posted to Discord:
 
 ```
 ✅ What I Worked on Today:
-  • [Detailed tasks from screenshot analysis]
+  • AI-analyzed tasks from your screenshots
 
 🏁 What I Completed:
-  • [Tasks marked as finished/deployed/merged]
+  • Tasks marked as finished/deployed
 
 📰 What's the latest in the Solana Ecosystem:
-  • [Solana news from Twitter screenshots]
+  • Solana news (if captured from Twitter)
 
 ⚠️ Issues / Blockers:
-  • [Problems and errors encountered]
+  • Problems encountered
 
 🔜 Focus for Tomorrow:
-  • [AI-generated recommendations]
-  (Skipped on Fridays)
+  • AI recommendations (skipped Fridays)
 ```
 
-## Database
+## 🔒 Privacy
 
-All data is stored in SQLite: `activity_log.db`
+- 100% local processing (Ollama runs offline)
+- All screenshots deleted after summary
+- Database wiped clean daily
+- Only summary sent to Discord
 
-**Tables:**
-- `logs` - Window activity records
-- `screenshots` - Screenshot metadata and OCR text
+## 🆘 Troubleshooting
 
-## File Structure
-
-```
-daily_log_ai/
-├── scheduler.py           # Main service runner
-├── activity_tracker.py    # Window tracking
-├── screen_recorder.py     # Screenshot capture
-├── ocr_processor.py       # OCR text extraction
-├── text_analyzer.py       # Work content analysis
-├── database.py            # SQLite operations
-├── config.py             # Configuration
-└── screenshots/          # Screenshot storage
+**"Could not connect to Ollama"**
+```bash
+ollama serve
+curl http://localhost:11434/api/tags
 ```
 
-## Privacy
+**"Tesseract not found"**
+```bash
+brew install tesseract
+tesseract --version
+```
 
-- All data stays local on your machine
-- Screenshots stored in `./screenshots/` directory
-- Auto-cleanup after 1 day (configurable)
-- No data sent to external services
+**Screen recording permissions**
+- macOS: System Preferences → Privacy → Screen Recording
+- Enable for Terminal or your app
 
-## Requirements
-
-- Python 3.7+
-- macOS, Linux, or Windows
-- Tesseract OCR installed
-- Sufficient disk space for screenshots
-
-## Troubleshooting
-
-**"Tesseract not found" error:**
-- Make sure Tesseract is installed and in PATH
-- On macOS: `brew install tesseract`
-
-**Screenshots not capturing:**
-- Check permissions for screen recording (macOS System Preferences)
-- Verify `screenshots/` directory exists
-
-**No text extracted:**
-- Screenshots may have low resolution or poor contrast
-- Check Tesseract installation: `tesseract --version`
+**Summary quality issues**
+- Try different model: `OLLAMA_MODEL = "mistral"`
+- Increase screenshot interval if too much data

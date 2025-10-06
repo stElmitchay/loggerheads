@@ -8,15 +8,16 @@ import time
 import threading
 import os
 from datetime import datetime
-from activity_tracker import track_activity
-from database import init_db, save_logs, save_screenshot, get_screenshots
-from summarizer import summarize_logs
-from screen_recorder import capture_screenshot
-from ocr_processor import extract_text_from_image
-from text_analyzer import analyze_text, generate_structured_summary, format_summary_for_display
-from ai_summarizer import summarize_work_with_ai, format_ai_summary_for_display
-from discord_notifier import send_summary_to_discord
-from config import (
+from .activity_tracker import track_activity
+from .database import init_db, save_logs, save_screenshot, get_screenshots
+from .summarizer import summarize_logs
+from .screen_recorder import capture_screenshot
+from .ocr_processor import extract_text_from_image
+from .text_analyzer import analyze_text, generate_structured_summary, format_summary_for_display
+from .ai_summarizer import summarize_work_with_ai, format_ai_summary_for_display
+from .discord_notifier import send_summary_to_discord
+from .database_cleanup import clear_all_database_data
+from .config import (
     WORK_START_TIME,
     WORK_END_TIME,
     WORK_DAYS,
@@ -172,6 +173,9 @@ def process_and_generate_summary():
 
         # Clean up screenshots after summary is generated
         cleanup_screenshots()
+
+        # Clean up database - delete all logs and screenshots
+        clear_all_database_data()
     else:
         print("No text extracted from screenshots.")
 

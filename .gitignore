@@ -22,6 +22,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.claude
 
 # Screenshots directory
 screenshots/
@@ -46,6 +47,7 @@ activity_log.db
 # Environment variables
 .env
 .env.local
+.env.*.local
 
 # Logs
 *.log
@@ -57,3 +59,5 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+
+CLAUDE.md
