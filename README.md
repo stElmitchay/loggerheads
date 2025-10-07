@@ -67,7 +67,14 @@ The app will:
 - Post summary to Discord
 - Delete all data automatically
 
-Press `Ctrl+C` to stop and generate summary immediately.
+### ⌨️ Controls
+
+While the tracker is running:
+- **Press `P`** - Pause tracking (for breaks, personal time, etc.)
+- **Press `R`** - Resume tracking
+- **Press `Ctrl+C`** - Stop and generate summary immediately
+
+When paused, no screenshots are captured and no activity is tracked. Perfect for lunch breaks or watching movies!
 
 ## 🔧 Updates
 

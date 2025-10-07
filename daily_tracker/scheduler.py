@@ -8,6 +8,7 @@ import time
 import threading
 import os
 from datetime import datetime
+from pynput import keyboard
 from .activity_tracker import track_activity
 from .database import init_db, save_logs, save_screenshot, get_screenshots
 from .summarizer import summarize_logs
@@ -190,7 +191,10 @@ def run_scheduled_tracker():
     print(f"📅 Work hours: {WORK_START_TIME} - {WORK_END_TIME}")
     print(f"📆 Work days: {', '.join(['Mon', 'Tue', 'Wed', 'Thu', 'Fri'][day] for day in WORK_DAYS)}")
     print(f"📸 Screenshot interval: {SCREENSHOT_INTERVAL} seconds")
-    print("Press Ctrl+C to stop the service\n")
+    print("\n⌨️  Controls:")
+    print("  Press 'P' to PAUSE tracking")
+    print("  Press 'R' to RESUME tracking")
+    print("  Press Ctrl+C to stop and generate summary\n")
 
     session_logs = []
     last_status = None
@@ -198,6 +202,33 @@ def run_scheduled_tracker():
     last_minute_log = time.time()
     screenshot_count = 0
     activity_count = 0
+    is_paused = False
+    pause_start_time = None
+    total_pause_time = 0
+
+    def on_press(key):
+        """Handle keyboard input for pause/resume."""
+        nonlocal is_paused, pause_start_time, total_pause_time
+
+        try:
+            if hasattr(key, 'char'):
+                if key.char == 'p' or key.char == 'P':
+                    if not is_paused:
+                        is_paused = True
+                        pause_start_time = time.time()
+                        print(f"\n⏸️  [{datetime.now().strftime('%H:%M:%S')}] PAUSED - Press 'R' to resume")
+                elif key.char == 'r' or key.char == 'R':
+                    if is_paused:
+                        is_paused = False
+                        if pause_start_time:
+                            total_pause_time += time.time() - pause_start_time
+                        print(f"\n▶️  [{datetime.now().strftime('%H:%M:%S')}] RESUMED - Tracking active")
+        except AttributeError:
+            pass
+
+    # Start keyboard listener in background
+    listener = keyboard.Listener(on_press=on_press)
+    listener.start()
 
     try:
         while True:
@@ -228,8 +259,8 @@ def run_scheduled_tracker():
 
                 last_status = current_status
 
-            # Track activity if within work hours
-            if current_status:
+            # Track activity if within work hours AND not paused
+            if current_status and not is_paused:
                 activity = track_single_activity()
                 if activity:
                     session_logs.append(activity)
@@ -253,11 +284,21 @@ def run_scheduled_tracker():
                     print(f"⏱️  [{datetime.now().strftime('%H:%M:%S')}] Status: {screenshot_count} screenshots, {activity_count} activities tracked")
                     last_minute_log = current_time
 
+            # Show paused status every minute when paused
+            if is_paused:
+                current_time = time.time()
+                if current_time - last_minute_log >= 60:
+                    print(f"⏸️  [{datetime.now().strftime('%H:%M:%S')}] PAUSED - Press 'R' to resume")
+                    last_minute_log = current_time
+
             # Sleep for tracking interval
             time.sleep(TRACKING_INTERVAL)
 
     except KeyboardInterrupt:
         print("\n\n🛑 Service stopped by user")
+
+        # Stop keyboard listener
+        listener.stop()
 
         # Save any remaining logs
         if session_logs:
@@ -267,7 +308,11 @@ def run_scheduled_tracker():
         print("\nGenerating final summary...")
         process_and_generate_summary()
 
-        print(f"\n📸 Total screenshots captured: {screenshot_count}")
+        # Show stats
+        print(f"\n📊 Session Statistics:")
+        print(f"  📸 Total screenshots: {screenshot_count}")
+        print(f"  ⏸️  Total pause time: {int(total_pause_time / 60)} minutes")
+        print(f"  ⏱️  Active tracking time: {int((time.time() - last_status if last_status else 0 - total_pause_time) / 60)} minutes")
 
 
 def run_as_daemon():

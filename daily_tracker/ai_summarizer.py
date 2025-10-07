@@ -25,13 +25,20 @@ def summarize_work_with_ai(all_ocr_text, ollama_url, ollama_model, is_friday=Fal
         print("❌ No OCR text to analyze")
         return None
 
+    # Sample screenshots if too many (take every Nth screenshot for better coverage)
+    original_count = len(all_ocr_text)
+    if len(all_ocr_text) > 30:
+        sample_rate = max(2, len(all_ocr_text) // 30)
+        all_ocr_text = all_ocr_text[::sample_rate]
+        print(f"📊 Sampled {len(all_ocr_text)} screenshots from {original_count} total (every {sample_rate}th)")
+
     # Combine all OCR text
     combined_text = "\n\n---SCREENSHOT---\n\n".join(all_ocr_text)
 
-    # Truncate if too long (most models have context limits)
+    # Truncate if still too long
     max_chars = 50000  # Conservative limit for local models
     if len(combined_text) > max_chars:
-        print(f"⚠️  OCR text too long ({len(combined_text)} chars), truncating to {max_chars}")
+        print(f"⚠️  Text still too long ({len(combined_text)} chars), truncating to {max_chars}")
         combined_text = combined_text[:max_chars]
 
     # Create the prompt

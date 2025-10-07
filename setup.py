@@ -29,6 +29,7 @@ setup(
         "pytesseract>=0.3.10",
         "requests>=2.31.0",
         "python-dotenv>=1.0.0",
+        "pynput>=1.7.6",
     ],
     entry_points={
         "console_scripts": [
