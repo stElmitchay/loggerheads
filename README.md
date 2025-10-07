@@ -20,7 +20,7 @@ brew install tesseract
 ```bash
 git clone https://github.com/stElmitchay/loggerheads
 cd loggerheads
-pip install -e .
+pip3 install -e .
 ```
 
 ### 3. Configure
