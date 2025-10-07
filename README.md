@@ -1,6 +1,6 @@
 # Daily Activity Tracker
 
-Automatically track your work and get AI-generated daily summaries. Built for macOS.
+Automatically track your work and get AI-generated daily summaries at the end of the work day.
 
 ## 🚀 Installation
 
@@ -15,11 +15,11 @@ ollama pull llama3.2
 brew install tesseract
 ```
 
-### 2. Clone and Install Package
+### 2. Clone the repo and Install Package
 
 ```bash
-git clone https://github.com/yourcompany/daily-tracker.git
-cd daily-tracker
+git clone https://github.com/stElmitchay/loggerheads
+cd loggerheads
 pip install -e .
 ```
 
@@ -42,16 +42,14 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your-webhook-url-here
 SEND_TO_DISCORD=true
 ```
 
-**Note:** The `.env` file is gitignored, so your webhook stays private!
+**Note:** The discord webhook is to get your daily log sent directly to the daily logs chat on discord.
 
 ## ▶️ Usage
 
 ```bash
-# Start the tracker
-daily-tracker
-
 # Or explicitly
-daily-tracker start
+daily-tracker start 
+- To start tracking
 
 # Show version
 daily-tracker version
@@ -83,27 +81,6 @@ When paused, no screenshots are captured and no activity is tracked. Perfect for
 pip install --upgrade git+https://github.com/yourcompany/daily-tracker.git
 ```
 
-## 📊 Summary Format
-
-Daily summary posted to Discord:
-
-```
-✅ What I Worked on Today:
-  • AI-analyzed tasks from your screenshots
-
-🏁 What I Completed:
-  • Tasks marked as finished/deployed
-
-📰 What's the latest in the Solana Ecosystem:
-  • Solana news (if captured from Twitter)
-
-⚠️ Issues / Blockers:
-  • Problems encountered
-
-🔜 Focus for Tomorrow:
-  • AI recommendations (skipped Fridays)
-```
-
 ## 🔒 Privacy
 
 - 100% local processing (Ollama runs offline)
@@ -111,19 +88,6 @@ Daily summary posted to Discord:
 - Database wiped clean daily
 - Only summary sent to Discord
 
-## 🆘 Troubleshooting
-
-**"Could not connect to Ollama"**
-```bash
-ollama serve
-curl http://localhost:11434/api/tags
-```
-
-**"Tesseract not found"**
-```bash
-brew install tesseract
-tesseract --version
-```
 
 **Screen recording permissions**
 - macOS: System Preferences → Privacy → Screen Recording
