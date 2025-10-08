@@ -7,6 +7,11 @@ import re
 from collections import Counter, defaultdict
 from datetime import datetime
 from urllib.parse import urlparse
+from rich.console import Console
+from rich.table import Table
+from rich.text import Text
+
+console = Console()
 
 
 # Work-related action verbs that indicate tasks/accomplishments
@@ -459,7 +464,7 @@ def generate_structured_summary(screenshot_data, is_friday=False):
 
 def format_summary_for_display(summary):
     """
-    Format the work summary using the specified template.
+    Format the work summary using the specified template with Rich formatting.
 
     Args:
         summary (dict): Structured summary from generate_structured_summary()
@@ -471,58 +476,58 @@ def format_summary_for_display(summary):
     lines.append("")
 
     if not summary.get('activity_detected', False):
-        lines.append("No significant activity detected.")
+        lines.append("[yellow]No significant activity detected.[/yellow]")
         return "\n".join(lines)
 
     # ✅ What I Worked on Today
     tasks = summary.get('tasks_worked_on', [])
     if tasks:
-        lines.append("✅ What I Worked on Today:")
+        lines.append("[bold green]✅ What I Worked on Today:[/bold green]")
         unique_tasks = list(set(tasks))[:15]  # Get unique tasks, max 15
         for task in unique_tasks:
-            lines.append(f"  • {task}")
+            lines.append(f"  [cyan]•[/cyan] {task}")
         lines.append("")
 
     # 🏁 What I Completed
     completed = summary.get('completed_tasks', [])
     if completed:
-        lines.append("🏁 What I Completed:")
+        lines.append("[bold blue]🏁 What I Completed:[/bold blue]")
         unique_completed = list(set(completed))[:10]
         for item in unique_completed:
-            lines.append(f"  • {item}")
+            lines.append(f"  [cyan]•[/cyan] {item}")
         lines.append("")
 
     # 📰 What's the latest in the Solana Ecosystem
     solana_news = summary.get('solana_news', [])
     if solana_news:
-        lines.append("📰 What's the latest in the Solana Ecosystem:")
+        lines.append("[bold magenta]📰 What's the latest in the Solana Ecosystem:[/bold magenta]")
         unique_news = list(set(solana_news))[:5]
         for news in unique_news:
-            lines.append(f"  • {news}")
+            lines.append(f"  [cyan]•[/cyan] {news}")
         lines.append("")
 
     # ⚠️ Issues / Blockers
     problems = summary.get('problems_blockers', [])
     if problems:
-        lines.append("⚠️ Issues / Blockers:")
+        lines.append("[bold yellow]⚠️  Issues / Blockers:[/bold yellow]")
         unique_problems = list(set(problems))[:8]
         for problem in unique_problems:
-            lines.append(f"  • {problem}")
+            lines.append(f"  [cyan]•[/cyan] {problem}")
     else:
-        lines.append("⚠️ Issues / Blockers:")
-        lines.append("  • No significant blockers identified")
+        lines.append("[bold yellow]⚠️  Issues / Blockers:[/bold yellow]")
+        lines.append("  [dim]• No significant blockers identified[/dim]")
     lines.append("")
 
     # 🔜 Focus for Tomorrow (Skip on Fridays)
     if not summary.get('is_friday', False):
         tomorrow_focus = summary.get('tomorrow_focus', [])
         if tomorrow_focus:
-            lines.append("🔜 Focus for Tomorrow:")
+            lines.append("[bold cyan]🔜 Focus for Tomorrow:[/bold cyan]")
             for focus in tomorrow_focus:
-                lines.append(f"  • {focus}")
+                lines.append(f"  [cyan]•[/cyan] {focus}")
         else:
-            lines.append("🔜 Focus for Tomorrow:")
-            lines.append("  • Continue current project work")
+            lines.append("[bold cyan]🔜 Focus for Tomorrow:[/bold cyan]")
+            lines.append("  [dim]• Continue current project work[/dim]")
         lines.append("")
 
     return "\n".join(lines)

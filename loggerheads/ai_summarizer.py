@@ -6,7 +6,10 @@ Converts raw OCR text into intelligent work summaries.
 import requests
 import json
 from datetime import datetime
+from rich.console import Console
 from .user_context import get_user_context
+
+console = Console()
 
 
 def summarize_work_with_ai(all_ocr_text, ollama_url, ollama_model, is_friday=False):
@@ -23,7 +26,7 @@ def summarize_work_with_ai(all_ocr_text, ollama_url, ollama_model, is_friday=Fal
         dict: Structured summary with all sections
     """
     if not all_ocr_text or len(all_ocr_text) == 0:
-        print("❌ No OCR text to analyze")
+        console.print("[bold red]❌ No OCR text to analyze[/bold red]")
         return None
 
     # Sample screenshots if too many (take every Nth screenshot for better coverage)
@@ -31,7 +34,7 @@ def summarize_work_with_ai(all_ocr_text, ollama_url, ollama_model, is_friday=Fal
     if len(all_ocr_text) > 30:
         sample_rate = max(2, len(all_ocr_text) // 30)
         all_ocr_text = all_ocr_text[::sample_rate]
-        print(f"📊 Sampled {len(all_ocr_text)} screenshots from {original_count} total (every {sample_rate}th)")
+        console.print(f"[cyan]📊 Sampled {len(all_ocr_text)} screenshots from {original_count} total (every {sample_rate}th)[/cyan]")
 
     # Combine all OCR text
     combined_text = "\n\n---SCREENSHOT---\n\n".join(all_ocr_text)
@@ -39,7 +42,7 @@ def summarize_work_with_ai(all_ocr_text, ollama_url, ollama_model, is_friday=Fal
     # Truncate if still too long
     max_chars = 5000000  # Conservative limit for local models
     if len(combined_text) > max_chars:
-        print(f"⚠️  Text still too long ({len(combined_text)} chars), truncating to {max_chars}")
+        console.print(f"[yellow]⚠️  Text still too long ({len(combined_text)} chars), truncating to {max_chars}[/yellow]")
         combined_text = combined_text[:max_chars]
 
     # Get user context for intelligent categorization
@@ -98,7 +101,7 @@ IMPORTANT:
 """
 
     try:
-        print(f"🤖 Calling Ollama ({ollama_model}) to analyze work...")
+        console.print(f"[bold magenta]🤖 Calling Ollama ({ollama_model}) to analyze work...[/bold magenta]")
 
         # Call Ollama API
         response = requests.post(
@@ -116,7 +119,7 @@ IMPORTANT:
         )
 
         if response.status_code != 200:
-            print(f"❌ Ollama API error: {response.status_code}")
+            console.print(f"[bold red]❌ Ollama API error: {response.status_code}[/bold red]")
             return None
 
         # Parse the response
@@ -124,23 +127,23 @@ IMPORTANT:
         response_text = response_json.get("response", "")
 
         if not response_text:
-            print("❌ No response from Ollama")
+            console.print("[bold red]❌ No response from Ollama[/bold red]")
             return None
 
         # Parse the structured response
         summary = parse_ai_response(response_text, is_friday)
 
-        print("✅ AI analysis complete")
+        console.print("[bold green]✅ AI analysis complete[/bold green]")
         return summary
 
     except requests.exceptions.ConnectionError:
-        print("❌ Could not connect to Ollama. Make sure Ollama is running (ollama serve)")
+        console.print("[bold red]❌ Could not connect to Ollama.[/bold red] Make sure Ollama is running (ollama serve)")
         return None
     except requests.exceptions.Timeout:
-        print("❌ Ollama request timed out. The model might be too slow or the text too long.")
+        console.print("[bold red]❌ Ollama request timed out.[/bold red] The model might be too slow or the text too long.")
         return None
     except Exception as e:
-        print(f"❌ Error calling Ollama: {e}")
+        console.print(f"[bold red]❌ Error calling Ollama: {e}[/bold red]")
         return None
 
 
@@ -197,7 +200,7 @@ def parse_ai_response(response_text, is_friday):
 
 def format_ai_summary_for_display(summary):
     """
-    Format AI-generated summary for display.
+    Format AI-generated summary for display with Rich formatting.
 
     Args:
         summary (dict): Structured summary from AI
@@ -211,49 +214,49 @@ def format_ai_summary_for_display(summary):
     # ✅ What I Worked on Today
     tasks = summary.get('tasks_worked_on', [])
     if tasks:
-        lines.append("✅ What I Worked on Today:")
+        lines.append("[bold green]✅ What I Worked on Today:[/bold green]")
         for task in tasks:
-            lines.append(f"  • {task}")
+            lines.append(f"  [cyan]•[/cyan] {task}")
         lines.append("")
     else:
-        lines.append("✅ What I Worked on Today:")
-        lines.append("  • No significant work activities identified")
+        lines.append("[bold green]✅ What I Worked on Today:[/bold green]")
+        lines.append("  [dim]• No significant work activities identified[/dim]")
         lines.append("")
 
     # 🏁 What I Completed
     completed = summary.get('completed_tasks', [])
     if completed:
-        lines.append("🏁 What I Completed:")
+        lines.append("[bold blue]🏁 What I Completed:[/bold blue]")
         for item in completed:
-            lines.append(f"  • {item}")
+            lines.append(f"  [cyan]•[/cyan] {item}")
         lines.append("")
 
     # 📰 What's the latest in the Solana Ecosystem
     solana_news = summary.get('solana_news', [])
     if solana_news and solana_news[0] != "No Solana news captured in screenshots":
-        lines.append("📰 What's the latest in the Solana Ecosystem:")
+        lines.append("[bold magenta]📰 What's the latest in the Solana Ecosystem:[/bold magenta]")
         for news in solana_news:
-            lines.append(f"  • {news}")
+            lines.append(f"  [cyan]•[/cyan] {news}")
         lines.append("")
 
     # ⚠️ Issues / Blockers
     blockers = summary.get('problems_blockers', [])
     if blockers and blockers[0] != "No significant blockers identified":
-        lines.append("⚠️ Issues / Blockers:")
+        lines.append("[bold yellow]⚠️  Issues / Blockers:[/bold yellow]")
         for blocker in blockers:
-            lines.append(f"  • {blocker}")
+            lines.append(f"  [cyan]•[/cyan] {blocker}")
     else:
-        lines.append("⚠️ Issues / Blockers:")
-        lines.append("  • No significant blockers identified")
+        lines.append("[bold yellow]⚠️  Issues / Blockers:[/bold yellow]")
+        lines.append("  [dim]• No significant blockers identified[/dim]")
     lines.append("")
 
     # 🔜 Focus for Tomorrow
     if not summary.get('is_friday', False):
         tomorrow = summary.get('tomorrow_focus', [])
         if tomorrow:
-            lines.append("🔜 Focus for Tomorrow:")
+            lines.append("[bold cyan]🔜 Focus for Tomorrow:[/bold cyan]")
             for focus in tomorrow:
-                lines.append(f"  • {focus}")
+                lines.append(f"  [cyan]•[/cyan] {focus}")
             lines.append("")
 
     return "\n".join(lines)

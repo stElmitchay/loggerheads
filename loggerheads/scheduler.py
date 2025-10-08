@@ -9,6 +9,14 @@ import threading
 import os
 from datetime import datetime
 from pynput import keyboard
+from rich.console import Console
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.table import Table
+from rich.live import Live
+from rich.layout import Layout
+from rich import box
+from rich.text import Text
 from .activity_tracker import track_activity
 from .database import init_db, save_logs, save_screenshot, get_screenshots
 from .summarizer import summarize_logs
@@ -32,6 +40,8 @@ from .config import (
     OLLAMA_API_URL,
     OLLAMA_MODEL
 )
+
+console = Console()
 
 
 def is_work_hours():
@@ -79,25 +89,33 @@ def cleanup_screenshots():
     """
     Delete all screenshot files and clean up the screenshots directory.
     """
-    print("\n🗑️  Cleaning up screenshots...")
+    console.print("\n[bold yellow]🗑️  Cleaning up screenshots...[/bold yellow]")
 
     try:
         # Get all screenshots from database
         screenshots = get_screenshots()
         deleted_count = 0
 
-        for screenshot_id, file_path, timestamp, extracted_text in screenshots:
-            if os.path.exists(file_path):
-                try:
-                    os.remove(file_path)
-                    deleted_count += 1
-                except Exception as e:
-                    print(f"⚠️  Could not delete {file_path}: {e}")
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            transient=True,
+        ) as progress:
+            task = progress.add_task("[cyan]Deleting screenshot files...", total=len(screenshots))
 
-        print(f"✅ Deleted {deleted_count} screenshot files")
+            for screenshot_id, file_path, timestamp, extracted_text in screenshots:
+                if os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                        deleted_count += 1
+                    except Exception as e:
+                        console.print(f"[yellow]⚠️  Could not delete {file_path}: {e}[/yellow]")
+                progress.advance(task)
+
+        console.print(f"[bold green]✅ Deleted {deleted_count} screenshot files[/bold green]")
 
     except Exception as e:
-        print(f"❌ Error cleaning up screenshots: {e}")
+        console.print(f"[bold red]❌ Error cleaning up screenshots: {e}[/bold red]")
 
 
 def process_and_generate_summary():
@@ -105,27 +123,37 @@ def process_and_generate_summary():
     Process all screenshots with OCR and generate the work summary.
     Uses AI summarization if enabled, otherwise falls back to keyword extraction.
     """
-    print("\n🔄 Processing screenshots with OCR...")
+    console.print("\n[bold cyan]🔄 Processing screenshots with OCR...[/bold cyan]")
 
     # Get all screenshots from database
     screenshots = get_screenshots()
 
     if not screenshots:
-        print("No screenshots to process.")
+        console.print("[yellow]No screenshots to process.[/yellow]")
         return
 
     all_ocr_texts = []
 
-    for screenshot_id, file_path, timestamp, extracted_text in screenshots:
-        # If text not already extracted, do OCR now
-        if not extracted_text or extracted_text.strip() == "":
-            if os.path.exists(file_path):
-                print(f"  Processing: {os.path.basename(file_path)}")
-                extracted_text = extract_text_from_image(file_path)
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+    ) as progress:
+        task = progress.add_task("[cyan]Processing screenshots...", total=len(screenshots))
 
-        # Collect all OCR text
-        if extracted_text and extracted_text.strip():
-            all_ocr_texts.append(extracted_text)
+        for screenshot_id, file_path, timestamp, extracted_text in screenshots:
+            # If text not already extracted, do OCR now
+            if not extracted_text or extracted_text.strip() == "":
+                if os.path.exists(file_path):
+                    progress.update(task, description=f"[cyan]Processing: {os.path.basename(file_path)}")
+                    extracted_text = extract_text_from_image(file_path)
+
+            # Collect all OCR text
+            if extracted_text and extracted_text.strip():
+                all_ocr_texts.append(extracted_text)
+
+            progress.advance(task)
 
     # Generate summary
     if all_ocr_texts:
@@ -134,13 +162,14 @@ def process_and_generate_summary():
 
         # Use AI summarization if enabled
         if USE_AI_SUMMARIZATION:
-            print(f"\n🤖 Using Ollama AI to analyze {len(all_ocr_texts)} screenshots...")
-            ai_summary = summarize_work_with_ai(all_ocr_texts, OLLAMA_API_URL, OLLAMA_MODEL, is_friday)
+            console.print(f"\n[bold magenta]🤖 Using Ollama AI to analyze {len(all_ocr_texts)} screenshots...[/bold magenta]")
+            with console.status("[bold green]Analyzing with AI...", spinner="dots"):
+                ai_summary = summarize_work_with_ai(all_ocr_texts, OLLAMA_API_URL, OLLAMA_MODEL, is_friday)
 
             if ai_summary:
                 formatted_summary = format_ai_summary_for_display(ai_summary)
             else:
-                print("⚠️  AI summarization failed, falling back to keyword extraction")
+                console.print("[yellow]⚠️  AI summarization failed, falling back to keyword extraction[/yellow]")
                 # Fallback to keyword extraction
                 screenshot_data = []
                 for text in all_ocr_texts:
@@ -150,7 +179,7 @@ def process_and_generate_summary():
                 formatted_summary = format_summary_for_display(summary)
         else:
             # Use keyword extraction
-            print(f"\n🔍 Using keyword extraction to analyze {len(all_ocr_texts)} screenshots...")
+            console.print(f"\n[bold blue]🔍 Using keyword extraction to analyze {len(all_ocr_texts)} screenshots...[/bold blue]")
             screenshot_data = []
             for text in all_ocr_texts:
                 analysis = analyze_text(text)
@@ -158,19 +187,23 @@ def process_and_generate_summary():
             summary = generate_structured_summary(screenshot_data, is_friday=is_friday)
             formatted_summary = format_summary_for_display(summary)
 
-        # Print to console
-        print("\n" + "="*70)
-        print("📊 END OF DAY WORK SUMMARY")
-        print("="*70)
-        print(formatted_summary)
-        print("="*70 + "\n")
+        # Print to console with rich panel
+        console.print()
+        console.print(Panel(
+            formatted_summary,
+            title="[bold cyan]📊 END OF DAY WORK SUMMARY[/bold cyan]",
+            border_style="cyan",
+            box=box.DOUBLE,
+            padding=(1, 2)
+        ))
+        console.print()
 
         # Send to Discord if enabled
         if SEND_TO_DISCORD and DISCORD_WEBHOOK_URL:
-            print("📤 Sending summary to Discord...")
+            console.print("[bold blue]📤 Sending summary to Discord...[/bold blue]")
             send_summary_to_discord(DISCORD_WEBHOOK_URL, formatted_summary)
         elif SEND_TO_DISCORD and not DISCORD_WEBHOOK_URL:
-            print("⚠️  Discord notifications enabled but webhook URL not configured")
+            console.print("[yellow]⚠️  Discord notifications enabled but webhook URL not configured[/yellow]")
 
         # Clean up screenshots after summary is generated
         cleanup_screenshots()
@@ -178,7 +211,7 @@ def process_and_generate_summary():
         # Clean up database - delete all logs and screenshots
         clear_all_database_data()
     else:
-        print("No text extracted from screenshots.")
+        console.print("[yellow]No text extracted from screenshots.[/yellow]")
 
 
 def run_scheduled_tracker():
@@ -187,14 +220,24 @@ def run_scheduled_tracker():
     Captures screenshots, performs OCR, and generates end-of-day summary.
     """
     init_db()
-    print("🚀 Activity tracker service started")
-    print(f"📅 Work hours: {WORK_START_TIME} - {WORK_END_TIME}")
-    print(f"📆 Work days: {', '.join(['Mon', 'Tue', 'Wed', 'Thu', 'Fri'][day] for day in WORK_DAYS)}")
-    print(f"📸 Screenshot interval: {SCREENSHOT_INTERVAL} seconds")
-    print("\n⌨️  Controls:")
-    print("  Press 'P' to PAUSE tracking")
-    print("  Press 'R' to RESUME tracking")
-    print("  Press Ctrl+C to stop and generate summary\n")
+
+    # Create startup banner
+    console.print()
+    console.print(Panel(
+        f"[bold green]🚀 Activity Tracker Service Started[/bold green]\n\n"
+        f"[cyan]📅 Work hours:[/cyan] {WORK_START_TIME} - {WORK_END_TIME}\n"
+        f"[cyan]📆 Work days:[/cyan] {', '.join(['Mon', 'Tue', 'Wed', 'Thu', 'Fri'][day] for day in WORK_DAYS)}\n"
+        f"[cyan]📸 Screenshot interval:[/cyan] {SCREENSHOT_INTERVAL} seconds\n\n"
+        f"[yellow]⌨️  Controls:[/yellow]\n"
+        f"  [bold]P[/bold] - Pause tracking\n"
+        f"  [bold]R[/bold] - Resume tracking\n"
+        f"  [bold]Ctrl+C[/bold] - Stop and generate summary",
+        title="[bold magenta]Loggerheads Activity Tracker[/bold magenta]",
+        border_style="green",
+        box=box.ROUNDED,
+        padding=(1, 2)
+    ))
+    console.print()
 
     session_logs = []
     last_status = None
@@ -216,13 +259,13 @@ def run_scheduled_tracker():
                     if not is_paused:
                         is_paused = True
                         pause_start_time = time.time()
-                        print(f"\n⏸️  [{datetime.now().strftime('%H:%M:%S')}] PAUSED - Press 'R' to resume")
+                        console.print(f"\n[bold yellow]⏸️  [{datetime.now().strftime('%H:%M:%S')}] PAUSED[/bold yellow] - Press 'R' to resume")
                 elif key.char == 'r' or key.char == 'R':
                     if is_paused:
                         is_paused = False
                         if pause_start_time:
                             total_pause_time += time.time() - pause_start_time
-                        print(f"\n▶️  [{datetime.now().strftime('%H:%M:%S')}] RESUMED - Tracking active")
+                        console.print(f"\n[bold green]▶️  [{datetime.now().strftime('%H:%M:%S')}] RESUMED[/bold green] - Tracking active")
         except AttributeError:
             pass
 
@@ -237,13 +280,13 @@ def run_scheduled_tracker():
             # Status change notifications
             if current_status != last_status:
                 if current_status:
-                    print(f"✅ [{datetime.now().strftime('%H:%M:%S')}] Work hours started - tracking active")
+                    console.print(f"[bold green]✅ [{datetime.now().strftime('%H:%M:%S')}] Work hours started[/bold green] - tracking active")
                     last_screenshot_time = time.time()  # Reset screenshot timer
                     last_minute_log = time.time()
                     screenshot_count = 0
                     activity_count = 0
                 else:
-                    print(f"⏸️  [{datetime.now().strftime('%H:%M:%S')}] Work hours ended - generating summary...")
+                    console.print(f"[bold yellow]⏸️  [{datetime.now().strftime('%H:%M:%S')}] Work hours ended[/bold yellow] - generating summary...")
 
                     # Save activity logs
                     if session_logs:
@@ -253,7 +296,7 @@ def run_scheduled_tracker():
                     # Process screenshots and generate summary
                     process_and_generate_summary()
 
-                    print(f"\n📸 Total screenshots captured today: {screenshot_count}")
+                    console.print(f"\n[cyan]📸 Total screenshots captured today: {screenshot_count}[/cyan]")
                     screenshot_count = 0
                     activity_count = 0
 
@@ -281,21 +324,25 @@ def run_scheduled_tracker():
 
                 # Log status every minute
                 if current_time - last_minute_log >= 60:
-                    print(f"⏱️  [{datetime.now().strftime('%H:%M:%S')}] Status: {screenshot_count} screenshots, {activity_count} activities tracked")
+                    table = Table(show_header=False, box=None, padding=(0, 1))
+                    table.add_row("[bold cyan]⏱️  Status Update[/bold cyan]", f"[dim]{datetime.now().strftime('%H:%M:%S')}[/dim]")
+                    table.add_row("[cyan]📸 Screenshots[/cyan]", f"[bold]{screenshot_count}[/bold]")
+                    table.add_row("[cyan]📝 Activities[/cyan]", f"[bold]{activity_count}[/bold]")
+                    console.print(table)
                     last_minute_log = current_time
 
             # Show paused status every minute when paused
             if is_paused:
                 current_time = time.time()
                 if current_time - last_minute_log >= 60:
-                    print(f"⏸️  [{datetime.now().strftime('%H:%M:%S')}] PAUSED - Press 'R' to resume")
+                    console.print(f"[bold yellow]⏸️  [{datetime.now().strftime('%H:%M:%S')}] PAUSED[/bold yellow] - Press 'R' to resume")
                     last_minute_log = current_time
 
             # Sleep for tracking interval
             time.sleep(TRACKING_INTERVAL)
 
     except KeyboardInterrupt:
-        print("\n\n🛑 Service stopped by user")
+        console.print("\n\n[bold red]🛑 Service stopped by user[/bold red]")
 
         # Stop keyboard listener
         listener.stop()
@@ -305,14 +352,21 @@ def run_scheduled_tracker():
             save_logs(session_logs)
 
         # Process and generate final summary
-        print("\nGenerating final summary...")
+        console.print("\n[bold cyan]Generating final summary...[/bold cyan]")
         process_and_generate_summary()
 
-        # Show stats
-        print(f"\n📊 Session Statistics:")
-        print(f"  📸 Total screenshots: {screenshot_count}")
-        print(f"  ⏸️  Total pause time: {int(total_pause_time / 60)} minutes")
-        print(f"  ⏱️  Active tracking time: {int((time.time() - last_status if last_status else 0 - total_pause_time) / 60)} minutes")
+        # Show stats in a nice table
+        stats_table = Table(title="[bold]📊 Session Statistics[/bold]", box=box.ROUNDED, border_style="cyan")
+        stats_table.add_column("Metric", style="cyan", no_wrap=True)
+        stats_table.add_column("Value", style="bold green")
+
+        stats_table.add_row("📸 Total Screenshots", str(screenshot_count))
+        stats_table.add_row("⏸️  Total Pause Time", f"{int(total_pause_time / 60)} minutes")
+        stats_table.add_row("⏱️  Active Tracking Time", f"{int((time.time() - last_status if last_status else 0 - total_pause_time) / 60)} minutes")
+
+        console.print()
+        console.print(stats_table)
+        console.print()
 
 
 def run_as_daemon():
