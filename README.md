@@ -16,13 +16,16 @@ Automatically track your work and get AI-generated daily summaries focused on So
 ### 1. Install Dependencies
 
 ```bash
-# Install Ollama
-curl -fsSL https://ollama.com/install.sh | sh
+# Install Ollama (macOS)
+brew install ollama
+ollama serve &  # Start Ollama service
 ollama pull llama3.2
 
 # Install Tesseract OCR
 brew install tesseract
 ```
+
+**Note:** For Linux, use: `curl -fsSL https://ollama.com/install.sh | sh`
 
 ### 2. Clone and Install
 
