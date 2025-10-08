@@ -6,6 +6,7 @@ Converts raw OCR text into intelligent work summaries.
 import requests
 import json
 from datetime import datetime
+from .user_context import get_user_context
 
 
 def summarize_work_with_ai(all_ocr_text, ollama_url, ollama_model, is_friday=False):
@@ -36,29 +37,37 @@ def summarize_work_with_ai(all_ocr_text, ollama_url, ollama_model, is_friday=Fal
     combined_text = "\n\n---SCREENSHOT---\n\n".join(all_ocr_text)
 
     # Truncate if still too long
-    max_chars = 50000  # Conservative limit for local models
+    max_chars = 5000000  # Conservative limit for local models
     if len(combined_text) > max_chars:
         print(f"⚠️  Text still too long ({len(combined_text)} chars), truncating to {max_chars}")
         combined_text = combined_text[:max_chars]
 
+    # Get user context for intelligent categorization
+    user_context = get_user_context()
+    user_context_prompt = user_context.get_user_context_prompt()
+
     # Create the prompt
     today = datetime.now().strftime("%A, %B %d, %Y")
 
-    prompt = f"""You are analyzing screenshots from a developer's workday to generate an intelligent daily work summary.
+    prompt = f"""You are analyzing screenshots from a user's workday to generate an intelligent daily work summary.
 
 Today is: {today}
+
+{user_context_prompt}
 
 Below is OCR-extracted text from screenshots taken throughout the day. The text is messy and fragmented because it's from OCR. Your job is to intelligently analyze this text and understand what the person actually worked on.
 
 IMPORTANT INSTRUCTIONS:
-1. Look for patterns and context to understand actual work activities
-2. Identify courses taken, projects worked on, code written, problems solved
-3. Extract Solana ecosystem news if any Twitter/news screenshots are present
-4. Identify actual blockers or technical issues encountered
-5. Be specific and detailed - don't just list file names or fragments
-6. Write in first person ("I worked on...", "I completed...")
-7. Ignore UI elements, random text, timestamps, etc.
-8. Focus on ACTUAL WORK CONTENT
+1. ONLY include work-related activities based on the user's role and industry defined above
+2. IGNORE personal activities, social media browsing, entertainment, personal messaging
+3. Look for patterns and context to understand actual work activities
+4. Identify courses taken, projects worked on, code written, problems solved
+5. Extract Solana ecosystem news if any Twitter/news screenshots are present
+6. Identify actual blockers or technical issues encountered
+7. Be specific and detailed - don't just list file names or fragments
+8. Write in first person ("I worked on...", "I completed...")
+9. Ignore UI elements, random text, timestamps, etc.
+10. Focus on ACTUAL WORK CONTENT that's relevant to the user's professional role
 
 OCR TEXT FROM SCREENSHOTS:
 {combined_text}
@@ -66,13 +75,13 @@ OCR TEXT FROM SCREENSHOTS:
 Please analyze the above text and generate a work summary in this EXACT format:
 
 WORKED_ON:
-[List 3-8 specific detailed tasks/activities you identified from the screenshots. Be descriptive and specific about what was actually done. Examples: "Took AI Intro to MCP course", "Debugged authentication error in user service", "Researched Solana smart contract deployment strategies"]
+[List 3-8 specific detailed WORK tasks/activities you identified from the screenshots. Be descriptive and specific about what was actually done. ONLY include professional work activities. Examples: "Took AI Intro to MCP course", "Debugged authentication error in user service", "Researched deployment strategies"]
 
 COMPLETED:
-[List 2-5 tasks that were clearly finished/completed. Only include if there's clear evidence of completion. If nothing was clearly completed, write "No specific completions identified from screenshots"]
+[List 2-5 WORK tasks that were clearly finished/completed. Only include if there's clear evidence of completion. If nothing was clearly completed, write "No specific completions identified from screenshots"]
 
 SOLANA_NEWS:
-[List 1-3 Solana ecosystem updates/news if you found any Twitter screenshots or Solana-related content. Include brief context. If none found, write "No Solana news captured in screenshots"]
+[List 1-3 Solana ecosystem updates/news if you found any Twitter/news screenshots or Solana-related content. Include brief context. If none found, write "No Solana news captured in screenshots"]
 
 BLOCKERS:
 [List 1-3 specific technical issues, errors, or blockers encountered. Be specific about the actual problem. If none found, write "No significant blockers identified"]
@@ -220,10 +229,10 @@ def format_ai_summary_for_display(summary):
         lines.append("")
 
     # 📰 What's the latest in the Solana Ecosystem
-    solana = summary.get('solana_news', [])
-    if solana and solana[0] != "No Solana news captured in screenshots":
+    solana_news = summary.get('solana_news', [])
+    if solana_news and solana_news[0] != "No Solana news captured in screenshots":
         lines.append("📰 What's the latest in the Solana Ecosystem:")
-        for news in solana:
+        for news in solana_news:
             lines.append(f"  • {news}")
         lines.append("")
 

@@ -1,5 +1,5 @@
 """
-Setup configuration for daily-tracker package.
+Setup configuration for loggerheads package.
 """
 
 from setuptools import setup, find_packages
@@ -8,14 +8,14 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="daily-tracker",
+    name="loggerheads",
     version="1.0.0",
     author="Your Team",
     author_email="team@yourcompany.com",
     description="Automated daily work tracker with AI-generated summaries",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourcompany/daily-tracker",
+    url="https://github.com/stElmitchay/loggerheads",
     packages=find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -33,7 +33,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "daily-tracker=daily_tracker.cli:main",
+            "loggerheads=loggerheads.cli:main",
         ],
     },
     include_package_data=True,

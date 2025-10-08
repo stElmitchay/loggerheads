@@ -21,7 +21,7 @@ DATABASE_NAME = "activity_log.db"
 
 # Scheduled service settings
 WORK_START_TIME = "09:30"  # Start time in HH:MM format (24-hour)
-WORK_END_TIME = "16:30"    # End time in HH:MM format (24-hour)
+WORK_END_TIME = "16:30"    # End time in HH:MM format (24-hour) - 4:30 PM
 WORK_DAYS = [0, 1, 2, 3, 4]  # Monday=0, Tuesday=1, ..., Sunday=6 (Mon-Fri)
 
 # Target window for tracking (None = track all activity)
