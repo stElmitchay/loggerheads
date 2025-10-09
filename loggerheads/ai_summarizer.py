@@ -52,52 +52,55 @@ def summarize_work_with_ai(all_ocr_text, ollama_url, ollama_model, is_friday=Fal
     # Create the prompt
     today = datetime.now().strftime("%A, %B %d, %Y")
 
-    prompt = f"""You are analyzing screenshots from a user's workday to generate an intelligent daily work summary.
+    prompt = f"""You are analyzing screenshots from a user's workday to generate an accurate daily work summary.
 
 Today is: {today}
 
 {user_context_prompt}
 
-Below is OCR-extracted text from screenshots taken throughout the day. The text is messy and fragmented because it's from OCR. Your job is to intelligently analyze this text and understand what the person actually worked on.
+Below is OCR-extracted text from screenshots taken throughout the day. The text is messy and fragmented because it's from OCR.
 
-IMPORTANT INSTRUCTIONS:
-1. ONLY include work-related activities based on the user's role and industry defined above
-2. IGNORE personal activities, social media browsing, entertainment, personal messaging
-3. Look for patterns and context to understand actual work activities
-4. Identify courses taken, projects worked on, code written, problems solved
-5. Extract Solana ecosystem news if any Twitter/news screenshots are present
-6. Identify actual blockers or technical issues encountered
-7. Be specific and detailed - don't just list file names or fragments
-8. Write in first person ("I worked on...", "I completed...")
-9. Ignore UI elements, random text, timestamps, etc.
-10. Focus on ACTUAL WORK CONTENT that's relevant to the user's professional role
+CRITICAL RULES - READ CAREFULLY:
+1. ONLY report what you can DIRECTLY OBSERVE in the screenshots
+2. DO NOT infer, assume, or guess activities that aren't clearly visible
+3. DO NOT make up tasks based on what you think the user should have done
+4. If you see code editors, browser tabs, terminals - describe ONLY what's visible in the text
+5. IGNORE: advertisements, social media browsing, entertainment, personal content, UI chrome
+6. BE CONSERVATIVE: If unsure whether something is work, DON'T include it
+7. Write in first person ("I worked on...", "I completed...")
+8. Be specific - use actual project names, file names, technologies you see in the screenshots
+9. DO NOT fabricate completion status - only mark as completed if there's clear evidence
+10. If you see very little work content, it's OK to have a short summary
+
+QUALITY CHECK BEFORE RESPONDING:
+- Can I point to specific text in the OCR that supports this item? If NO, remove it.
+- Am I making assumptions about what happened? If YES, remove it.
+- Is this based on visible evidence? If NO, remove it.
 
 OCR TEXT FROM SCREENSHOTS:
 {combined_text}
 
-Please analyze the above text and generate a work summary in this EXACT format:
+Analyze ONLY what you can directly observe and generate a work summary in this EXACT format:
 
 WORKED_ON:
-[List 3-8 specific detailed WORK tasks/activities you identified from the screenshots. Be descriptive and specific about what was actually done. ONLY include professional work activities. Examples: "Took AI Intro to MCP course", "Debugged authentication error in user service", "Researched deployment strategies"]
+[List ONLY tasks you can directly see evidence of in the screenshots. Be specific and cite what you saw (e.g., "Edited main.py file based on visible code", "Read documentation about Docker deployment"). If you cannot identify clear work activities, write "Limited work activity detected in screenshots"]
 
 COMPLETED:
-[List 2-5 WORK tasks that were clearly finished/completed. Only include if there's clear evidence of completion. If nothing was clearly completed, write "No specific completions identified from screenshots"]
+[List ONLY tasks with clear evidence of completion (e.g., closed PR, finished tutorial, deployed code). If no clear completions visible, write "No specific completions identified from screenshots"]
 
 SOLANA_NEWS:
-[List 1-3 Solana ecosystem updates/news if you found any Twitter/news screenshots or Solana-related content. Include brief context. If none found, write "No Solana news captured in screenshots"]
+[List ONLY if you see actual Twitter/news content about Solana in the screenshots. Quote or paraphrase what you saw. If none found, write "No Solana news captured in screenshots"]
 
 BLOCKERS:
-[List 1-3 specific technical issues, errors, or blockers encountered. Be specific about the actual problem. If none found, write "No significant blockers identified"]
+[List ONLY specific errors, failed commands, or explicit blocker statements you see in the screenshots. If none visible, write "No significant blockers identified"]
 
 TOMORROW_FOCUS:
-{"[Skip this section - it's Friday]" if is_friday else "[List 2-3 intelligent recommendations for tomorrow based on what was worked on today and what seems incomplete or needs follow-up]"}
+{"[Skip this section - it's Friday]" if is_friday else "[Based ONLY on incomplete work visible in screenshots, suggest 2-3 follow-up items. If unclear what should be next, write 'Continue with current project work']"}
 
-IMPORTANT:
-- Do NOT just list raw OCR fragments
-- Do NOT list file names without context
-- DO extract actual work activities and meaning
-- DO be specific and detailed
-- DO write in first person
+ACCURACY CHECK:
+- Every item must be traceable to visible OCR text
+- Zero hallucination or assumption
+- When in doubt, leave it out
 """
 
     try:
@@ -200,7 +203,7 @@ def parse_ai_response(response_text, is_friday):
 
 def format_ai_summary_for_display(summary):
     """
-    Format AI-generated summary for display with Rich formatting.
+    Format AI-generated summary for display using exact specified template.
 
     Args:
         summary (dict): Structured summary from AI
@@ -209,54 +212,54 @@ def format_ai_summary_for_display(summary):
         str: Formatted string for display
     """
     lines = []
-    lines.append("")
 
     # ✅ What I Worked on Today
+    lines.append("✅ What I Worked on Today:")
     tasks = summary.get('tasks_worked_on', [])
     if tasks:
-        lines.append("[bold green]✅ What I Worked on Today:[/bold green]")
         for task in tasks:
-            lines.append(f"  [cyan]•[/cyan] {task}")
-        lines.append("")
+            lines.append(f"{task}")
     else:
-        lines.append("[bold green]✅ What I Worked on Today:[/bold green]")
-        lines.append("  [dim]• No significant work activities identified[/dim]")
-        lines.append("")
+        lines.append("[List specific tasks you worked on - be detailed, not vague]")
+        lines.append("[Mention key progress made on projects]")
+    lines.append("")
 
     # 🏁 What I Completed
     completed = summary.get('completed_tasks', [])
     if completed:
-        lines.append("[bold blue]🏁 What I Completed:[/bold blue]")
+        lines.append("🏁 What I Completed:")
         for item in completed:
-            lines.append(f"  [cyan]•[/cyan] {item}")
+            lines.append(f"{item}")
         lines.append("")
 
     # 📰 What's the latest in the Solana Ecosystem
     solana_news = summary.get('solana_news', [])
     if solana_news and solana_news[0] != "No Solana news captured in screenshots":
-        lines.append("[bold magenta]📰 What's the latest in the Solana Ecosystem:[/bold magenta]")
+        lines.append("📰 What's the latest in the Solana Ecosystem:")
         for news in solana_news:
-            lines.append(f"  [cyan]•[/cyan] {news}")
+            lines.append(f"{news}")
         lines.append("")
 
     # ⚠️ Issues / Blockers
+    lines.append("⚠️ Issues / Blockers:")
     blockers = summary.get('problems_blockers', [])
     if blockers and blockers[0] != "No significant blockers identified":
-        lines.append("[bold yellow]⚠️  Issues / Blockers:[/bold yellow]")
         for blocker in blockers:
-            lines.append(f"  [cyan]•[/cyan] {blocker}")
+            lines.append(f"{blocker}")
     else:
-        lines.append("[bold yellow]⚠️  Issues / Blockers:[/bold yellow]")
-        lines.append("  [dim]• No significant blockers identified[/dim]")
+        lines.append("[Mention specific challenges or dependencies]")
+        lines.append("[Explain what help you need or how you're addressing them]")
     lines.append("")
 
     # 🔜 Focus for Tomorrow
     if not summary.get('is_friday', False):
+        lines.append("🔜 Focus for Tomorrow:")
         tomorrow = summary.get('tomorrow_focus', [])
         if tomorrow:
-            lines.append("[bold cyan]🔜 Focus for Tomorrow:[/bold cyan]")
             for focus in tomorrow:
-                lines.append(f"  [cyan]•[/cyan] {focus}")
-            lines.append("")
+                lines.append(f"{focus}")
+        else:
+            lines.append("[List specific priorities for the next day]")
+        lines.append("")
 
     return "\n".join(lines)

@@ -4,6 +4,7 @@ Discord webhook integration for sending daily summaries.
 
 import requests
 import json
+import re
 from datetime import datetime
 
 
@@ -76,22 +77,41 @@ def send_to_discord(webhook_url, summary_text):
         return False
 
 
+def strip_rich_markup(text):
+    """
+    Remove Rich markup tags from text for Discord compatibility.
+
+    Args:
+        text (str): Text with Rich markup tags
+
+    Returns:
+        str: Plain text without markup
+    """
+    # Remove Rich markup tags like [bold green], [/bold green], [cyan], etc.
+    # Pattern matches [anything] and [/anything]
+    clean_text = re.sub(r'\[/?[^\]]+\]', '', text)
+    return clean_text
+
+
 def format_for_discord(summary_text):
     """
     Format the summary text for Discord (add code blocks for better readability).
 
     Args:
-        summary_text (str): Plain text summary
+        summary_text (str): Plain text summary (may contain Rich markup)
 
     Returns:
         str: Discord-formatted summary
     """
+    # Strip Rich markup first
+    clean_text = strip_rich_markup(summary_text)
+
     # Add header with current date
     date_str = datetime.now().strftime("%B %d, %Y")
 
     formatted = f"**📅 Daily Work Summary - {date_str}**\n\n"
     formatted += "```\n"
-    formatted += summary_text
+    formatted += clean_text
     formatted += "\n```"
 
     return formatted

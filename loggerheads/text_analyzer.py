@@ -464,7 +464,7 @@ def generate_structured_summary(screenshot_data, is_friday=False):
 
 def format_summary_for_display(summary):
     """
-    Format the work summary using the specified template with Rich formatting.
+    Format the work summary using the exact specified template.
 
     Args:
         summary (dict): Structured summary from generate_structured_summary()
@@ -473,61 +473,68 @@ def format_summary_for_display(summary):
         str: Formatted string for display
     """
     lines = []
-    lines.append("")
 
     if not summary.get('activity_detected', False):
-        lines.append("[yellow]No significant activity detected.[/yellow]")
+        lines.append("No significant activity detected.")
         return "\n".join(lines)
 
     # ✅ What I Worked on Today
+    lines.append("✅ What I Worked on Today:")
     tasks = summary.get('tasks_worked_on', [])
     if tasks:
-        lines.append("[bold green]✅ What I Worked on Today:[/bold green]")
         unique_tasks = list(set(tasks))[:15]  # Get unique tasks, max 15
         for task in unique_tasks:
-            lines.append(f"  [cyan]•[/cyan] {task}")
-        lines.append("")
+            lines.append(f"{task}")
+    else:
+        lines.append("[List specific tasks you worked on - be detailed, not vague]")
+        lines.append("[Mention key progress made on projects]")
+    lines.append("")
 
     # 🏁 What I Completed
+    lines.append("🏁 What I Completed:")
     completed = summary.get('completed_tasks', [])
     if completed:
-        lines.append("[bold blue]🏁 What I Completed:[/bold blue]")
         unique_completed = list(set(completed))[:10]
         for item in unique_completed:
-            lines.append(f"  [cyan]•[/cyan] {item}")
-        lines.append("")
+            lines.append(f"{item}")
+    else:
+        lines.append("[List completed tasks with specific outcomes]")
+        lines.append("[Include links to work if applicable]")
+    lines.append("")
 
     # 📰 What's the latest in the Solana Ecosystem
+    lines.append("📰 What's the latest in the Solana Ecosystem:")
     solana_news = summary.get('solana_news', [])
     if solana_news:
-        lines.append("[bold magenta]📰 What's the latest in the Solana Ecosystem:[/bold magenta]")
         unique_news = list(set(solana_news))[:5]
         for news in unique_news:
-            lines.append(f"  [cyan]•[/cyan] {news}")
-        lines.append("")
+            lines.append(f"{news}")
+    else:
+        lines.append("[Share at least one relevant news/product/development]")
+        lines.append("[Include brief explanation of why it's relevant]")
+    lines.append("")
 
     # ⚠️ Issues / Blockers
+    lines.append("⚠️ Issues / Blockers:")
     problems = summary.get('problems_blockers', [])
     if problems:
-        lines.append("[bold yellow]⚠️  Issues / Blockers:[/bold yellow]")
         unique_problems = list(set(problems))[:8]
         for problem in unique_problems:
-            lines.append(f"  [cyan]•[/cyan] {problem}")
+            lines.append(f"{problem}")
     else:
-        lines.append("[bold yellow]⚠️  Issues / Blockers:[/bold yellow]")
-        lines.append("  [dim]• No significant blockers identified[/dim]")
+        lines.append("[Mention specific challenges or dependencies]")
+        lines.append("[Explain what help you need or how you're addressing them]")
     lines.append("")
 
     # 🔜 Focus for Tomorrow (Skip on Fridays)
     if not summary.get('is_friday', False):
+        lines.append("🔜 Focus for Tomorrow:")
         tomorrow_focus = summary.get('tomorrow_focus', [])
         if tomorrow_focus:
-            lines.append("[bold cyan]🔜 Focus for Tomorrow:[/bold cyan]")
             for focus in tomorrow_focus:
-                lines.append(f"  [cyan]•[/cyan] {focus}")
+                lines.append(f"{focus}")
         else:
-            lines.append("[bold cyan]🔜 Focus for Tomorrow:[/bold cyan]")
-            lines.append("  [dim]• Continue current project work[/dim]")
+            lines.append("[List specific priorities for the next day]")
         lines.append("")
 
     return "\n".join(lines)
